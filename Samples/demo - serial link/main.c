@@ -30,47 +30,47 @@
 #include "serial.h"
 #include <string.h>
 
-unsigned char recvBuffer[10];
-unsigned char sendBuffer[10];
+unsigned char recvBuffer[16];
+unsigned char sendBuffer[16];
 
-unsigned int g_Frame = 0;
+unsigned int frame = 0;
+unsigned int serial_sprite_id = 0;
+
+void prepend_array(unsigned char* array, unsigned int array_size, unsigned char val);
+char convert_button_to_char(void);
 
 void			my_draw(void)
 {
 	unsigned int i = 0;
 
 	jo_printf(4, 2, "Serial Link (Taisen Cable) Demo");
+	jo_sprite_draw3D(serial_sprite_id, 0,-40, 500);
 
-	jo_printf(1, 6, "Recv:");
-	for(i = 0; i < sizeof(recvBuffer); i++)
-	{
-		jo_printf(7 + (i * 2), 6, "%c", recvBuffer[i]);
-	}	
-	
-	jo_printf(1, 8, "Send:");
+	jo_printf(1, 18, "Send:");
 	for(i = 0; i < sizeof(sendBuffer); i++)
 	{
-		jo_printf(7 + (i * 2), 8, "%c", sendBuffer[i]);
+		jo_printf(7 + (i * 2), 18, "%c", sendBuffer[i]);
+	}
+
+	jo_printf(1, 20, "Recv:");
+	for(i = 0; i < sizeof(recvBuffer); i++)
+	{
+		jo_printf(7 + (i * 2), 20, "%c", recvBuffer[i]);
 	}
 }
 
 void			my_gamepad(void)
 {
-
-}
-
-void			my_frame_counter(void)
-{
-	g_Frame++;
-
-}
-
-void			my_serial_send(void)
-{
-	unsigned char data = 'H';
+	unsigned char data = 0;
 	int result = 0;
 
-	if ((g_Frame & 127) != 0)
+	if(!jo_is_input_available(0))
+	{
+		return;
+	}
+
+	data = convert_button_to_char();
+	if(!data)
 	{
 		return;
 	}
@@ -78,15 +78,38 @@ void			my_serial_send(void)
 	result = jo_serial_send_byte(data);
 	if(result != 0)
 	{
-		jo_printf(2, 12, "Send failed %d", result);
+		//jo_printf(2, 12, "Send failed %d", result);
 		return;
 	}
 
-	jo_printf(2, 13, "Sent data %d (%x)", data);
+	prepend_array(sendBuffer, sizeof(sendBuffer), data);
+}
 
-	memmove(sendBuffer + 1, sendBuffer, sizeof(sendBuffer) -1);
-	sendBuffer[0] = data;
-	sendBuffer[1] = data;
+void			my_frame_counter(void)
+{
+	frame++;
+}
+
+void			my_serial_send(void)
+{
+	unsigned char data = 'H';
+	int result = 0;
+
+	if ((frame & 255) != 0)
+	{
+		return;
+	}
+
+	result = jo_serial_send_byte(data);
+	if(result != 0)
+	{
+		//jo_printf(2, 12, "Send failed %d", result);
+		return;
+	}
+
+	// jo_printf(2, 13, "Sent data %d (%x)", data);
+
+	prepend_array(sendBuffer, sizeof(sendBuffer), data);
 }
 
 void			my_serial_recv(void)
@@ -97,34 +120,96 @@ void			my_serial_recv(void)
 	result = jo_serial_recv_byte(&data);
 	if(result != 0)
 	{
-		jo_printf(2, 10, "Recv failed %d", result);
+		//jo_printf(2, 10, "Recv failed %d", result);
 		return;
 	}
 
-	jo_printf(2, 11, "Recived data %d (%x)", data);
+	//jo_printf(2, 11, "Recived data %d (%x)", data);
 
-	memmove(recvBuffer + 1, recvBuffer, sizeof(recvBuffer) -1);
-	recvBuffer[0] = data;
+	prepend_array(recvBuffer, sizeof(recvBuffer), data);
 }
 
 void			jo_main(void)
 {
-	jo_core_init(JO_COLOR_Black);
-	//gamepad_sprite_id = jo_sprite_add_tga(JO_ROOT_DIR, "PAD.TGA", JO_COLOR_Green);
-	//arrow_sprite_id = jo_sprite_add_tga(JO_ROOT_DIR, "ARW.TGA", JO_COLOR_Green);
-	//x_sprite_id = jo_sprite_add_tga(JO_ROOT_DIR, "X.TGA", JO_COLOR_Green);
-	//jo_core_add_callback(my_gamepad);
+	memset(recvBuffer, ' ', sizeof(recvBuffer));
+	memset(sendBuffer, ' ', sizeof(sendBuffer));
 
+	jo_core_init(JO_COLOR_Black);
 	jo_serial_init();
 
-	memset(recvBuffer, ' ', sizeof(recvBuffer));
-	memset(recvBuffer, ' ', sizeof(recvBuffer));
+	serial_sprite_id = jo_sprite_add_tga(JO_ROOT_DIR, "SERIAL.TGA", JO_COLOR_Green);
 
 	jo_core_add_callback(my_draw);
 	jo_core_add_callback(my_frame_counter);
 	jo_core_add_callback(my_serial_send);
 	jo_core_add_callback(my_serial_recv);
+	jo_core_add_callback(my_gamepad);
+
 	jo_core_run();
+}
+
+void prepend_array(unsigned char* array, unsigned int array_size, unsigned char val)
+{
+	memmove(array + 1, array, array_size -1);
+	array[0] = val;
+}
+
+char convert_button_to_char(void)
+{
+	if(jo_is_input_key_down(0, JO_KEY_RIGHT))
+	{
+		return 'r';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_LEFT))
+	{
+		return 'l';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_DOWN))
+	{
+		return 'd';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_UP))
+	{
+		return 'u';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_START))
+	{
+		return 'S';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_A))
+	{
+		return 'A';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_B))
+	{
+		return 'B';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_C))
+	{
+		return 'C';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_X))
+	{
+		return 'X';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_Y))
+	{
+		return 'Y';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_Z))
+	{
+		return 'Z';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_LEFT))
+	{
+		return 'L';
+	}
+	else if(jo_is_input_key_down(0, JO_KEY_RIGHT))
+	{
+		return 'R';
+	}
+
+	return 0;
 }
 
 /*
