@@ -57,6 +57,9 @@ void			my_draw(void)
 	{
 		jo_printf(7 + (i * 2), 20, "%c", recvBuffer[i]);
 	}
+
+	jo_printf(1, 22, "Press buttons to send data");
+	jo_printf(1, 23, "H is a periodic heartbeat");
 }
 
 void			my_gamepad(void)
