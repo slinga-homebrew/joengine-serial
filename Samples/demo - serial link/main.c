@@ -28,95 +28,102 @@
 
 #include <jo/jo.h>
 #include "serial.h"
+#include <string.h>
 
-static int gamepad_sprite_id;
-static int arrow_sprite_id;
-static int x_sprite_id;
+unsigned char recvBuffer[10];
+unsigned char sendBuffer[10];
+
+unsigned int g_Frame = 0;
 
 void			my_draw(void)
 {
+	unsigned int i = 0;
+
 	jo_printf(4, 2, "Serial Link (Taisen Cable) Demo");
 
+	jo_printf(1, 6, "Recv:");
+	for(i = 0; i < sizeof(recvBuffer); i++)
+	{
+		jo_printf(7 + (i * 2), 6, "%c", recvBuffer[i]);
+	}	
+	
+	jo_printf(1, 8, "Send:");
+	for(i = 0; i < sizeof(sendBuffer); i++)
+	{
+		jo_printf(7 + (i * 2), 8, "%c", sendBuffer[i]);
+	}
 }
 
 void			my_gamepad(void)
 {
-	// loop through all 12 controllers
-	// requires the use of two 6-player multitaps for full 12 player support
-	// controllerID is the controller port and can be from 0-11
-	// - ports 0-5 are on the multitap plugged into the first controller port
-	// - ports 6-11 are on the multitap plugged into the second controller port
-	for(int controllerID = 0; controllerID < JO_INPUT_MAX_DEVICE; controllerID++)
-	{		
-		int sprite_x_pos;
-		int sprite_y_pos;
-		
-		// sprite offsets
-		if(controllerID < 6)
-		{
-			sprite_x_pos = -72;
-			sprite_y_pos = -100 + (controllerID*40);
-		}
-		else
-		{
-			sprite_x_pos = 72;
-			sprite_y_pos = -100 + ((controllerID-6)*40);
-		}
 
-		if (!jo_is_input_available(controllerID))
-		{
-			// if the controller was not found, print a giant X
-		    jo_sprite_draw3D(x_sprite_id, sprite_x_pos, sprite_y_pos, 450);
-			continue;
-		}
+}
 
-		// Note: You can also use jo_is_input_key_* for direction
-		switch (jo_get_input_direction_pressed(controllerID))
-		{
-		    case LEFT: jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos - 25, sprite_y_pos - 5, 450); break;
-		    case RIGHT: jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos- 13, sprite_y_pos - 5, 450); break;
-		    case UP: jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos - 19, sprite_y_pos - 10, 450); break;
-		    case DOWN: jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos - 19, sprite_y_pos + 1, 450); break;
-		    case UP_LEFT: jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos - 22, sprite_y_pos - 8, 450); break;
-		    case UP_RIGHT: jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos - 16, sprite_y_pos - 8, 450); break;
-		    case DOWN_LEFT: jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos - 22, sprite_y_pos - 1, 450); break;
-		    case DOWN_RIGHT: jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos - 16, sprite_y_pos - 1, 450); break;
-		    case NONE: break;
-		}
+void			my_frame_counter(void)
+{
+	g_Frame++;
 
-		if (jo_is_input_key_pressed(controllerID, JO_KEY_START))
-		    jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos, sprite_y_pos, 450);
+}
 
-		if (jo_is_input_key_pressed(controllerID, JO_KEY_L))
-		    jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos - 18, sprite_y_pos - 20, 450);
-		if (jo_is_input_key_pressed(controllerID, JO_KEY_R))
-		    jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos + 18, sprite_y_pos - 20, 450);
+void			my_serial_send(void)
+{
+	unsigned char data = 'H';
+	int result = 0;
 
-		if (jo_is_input_key_pressed(controllerID, JO_KEY_A))
-		    jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos + 12, sprite_y_pos + 1, 450);
-		if (jo_is_input_key_pressed(controllerID, JO_KEY_B))
-		    jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos + 19, sprite_y_pos - 4, 450);
-		if (jo_is_input_key_pressed(controllerID, JO_KEY_C))
-		    jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos + 27, sprite_y_pos - 7, 450);
-
-		if (jo_is_input_key_pressed(controllerID, JO_KEY_X))
-		    jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos + 10, sprite_y_pos - 8, 450);
-		if (jo_is_input_key_pressed(controllerID, JO_KEY_Y))
-		    jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos + 16, sprite_y_pos - 12, 450);
-		if (jo_is_input_key_pressed(controllerID, JO_KEY_Z))
-		    jo_sprite_draw3D(arrow_sprite_id, sprite_x_pos + 22, sprite_y_pos - 14, 450);
-
+	if ((g_Frame & 127) != 0)
+	{
+		return;
 	}
+
+	result = jo_serial_send_byte(data);
+	if(result != 0)
+	{
+		jo_printf(2, 12, "Send failed %d", result);
+		return;
+	}
+
+	jo_printf(2, 13, "Sent data %d (%x)", data);
+
+	memmove(sendBuffer + 1, sendBuffer, sizeof(sendBuffer) -1);
+	sendBuffer[0] = data;
+	sendBuffer[1] = data;
+}
+
+void			my_serial_recv(void)
+{
+	unsigned char data = 0;
+	int result = 0;
+
+	result = jo_serial_recv_byte(&data);
+	if(result != 0)
+	{
+		jo_printf(2, 10, "Recv failed %d", result);
+		return;
+	}
+
+	jo_printf(2, 11, "Recived data %d (%x)", data);
+
+	memmove(recvBuffer + 1, recvBuffer, sizeof(recvBuffer) -1);
+	recvBuffer[0] = data;
 }
 
 void			jo_main(void)
 {
 	jo_core_init(JO_COLOR_Black);
-	gamepad_sprite_id = jo_sprite_add_tga(JO_ROOT_DIR, "PAD.TGA", JO_COLOR_Green);
-	arrow_sprite_id = jo_sprite_add_tga(JO_ROOT_DIR, "ARW.TGA", JO_COLOR_Green);
-	x_sprite_id = jo_sprite_add_tga(JO_ROOT_DIR, "X.TGA", JO_COLOR_Green);
+	//gamepad_sprite_id = jo_sprite_add_tga(JO_ROOT_DIR, "PAD.TGA", JO_COLOR_Green);
+	//arrow_sprite_id = jo_sprite_add_tga(JO_ROOT_DIR, "ARW.TGA", JO_COLOR_Green);
+	//x_sprite_id = jo_sprite_add_tga(JO_ROOT_DIR, "X.TGA", JO_COLOR_Green);
 	//jo_core_add_callback(my_gamepad);
+
+	jo_serial_init();
+
+	memset(recvBuffer, ' ', sizeof(recvBuffer));
+	memset(recvBuffer, ' ', sizeof(recvBuffer));
+
 	jo_core_add_callback(my_draw);
+	jo_core_add_callback(my_frame_counter);
+	jo_core_add_callback(my_serial_send);
+	jo_core_add_callback(my_serial_recv);
 	jo_core_run();
 }
 
