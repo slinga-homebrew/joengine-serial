@@ -1,4 +1,6 @@
 #include "serial.h"
+#include <jo/jo.h>
+
 
 int g_SerialInitialized = 0;
 
@@ -26,7 +28,7 @@ void jo_serial_init(void)
     SERIAL_REG_SCR = 0;
     SERIAL_REG_SMR = 0;
 
-    SERIAL_REG_BRR = 4; // TODO: no clue what I should put here
+    SERIAL_REG_BRR = 123; // TODO: no clue what I should put here
  
     /* Delay for at least one bit. */
     for(unsigned int i = 0; i < 64; i++)
@@ -88,20 +90,36 @@ int jo_serial_recv_byte(unsigned char* data)
     }
 
     // TODO error checking
-    /*
+
     
-    if(SSR & ORER)
-        SSR &= ~ORER;
-    
-    */
-    
+    if(SERIAL_REG_SSR & ORER)
+    {
+    	jo_printf(1, 25, "Resetting ORER");
+        SERIAL_REG_SSR &= ~ORER;
+    }
+
+    if(SERIAL_REG_SSR & FER)
+    {
+    	jo_printf(1, 26, "Resetting FER");
+        SERIAL_REG_SSR &= ~FER;
+    }
+
+
+    if(SERIAL_REG_SSR & PER)
+    {
+    	jo_printf(1, 27, "Resetting PER");
+        SERIAL_REG_SSR &= ~PER;
+    }
+
     if(!(SERIAL_REG_SSR & SERIAL_BIT_RDRF))
     {
         // not ready to send
         return -2;
     }   
 
-    *data = SERIAL_REG_RDR;
+    *data = (SERIAL_REG_RDR); // TODO: why is the top bit always set?
+    jo_printf(1, 28, "recv: %02x %02x", *data, (*data & 0x7f));
+
     SERIAL_REG_SSR &= ~SERIAL_BIT_RDRF;
     
     return 0;

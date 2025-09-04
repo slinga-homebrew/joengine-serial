@@ -59,7 +59,7 @@ void			my_draw(void)
 	}
 
 	jo_printf(1, 22, "Press buttons to send data");
-	jo_printf(1, 23, "H is a periodic heartbeat");
+	jo_printf(1, 23, "H is a periodic heartbeat. 1800 B 8N1");
 }
 
 void			my_gamepad(void)
@@ -113,6 +113,11 @@ void			my_serial_send(void)
 	// jo_printf(2, 13, "Sent data %d (%x)", data);
 
 	prepend_array(sendBuffer, sizeof(sendBuffer), data);
+
+	jo_printf(1, 25, "              ");
+	jo_printf(1, 26, "              ");
+	jo_printf(1, 27, "              ");
+	jo_printf(1, 28, "              ");
 }
 
 void			my_serial_recv(void)

@@ -15,6 +15,10 @@
 #define SERIAL_BIT_TE       (1<<5)
 #define SERIAL_BIT_RE       (1<<4)
 
+#define ORER                (1<<5)
+#define FER                 (1<<4)
+#define PER                 (1<<3)
+
 void jo_serial_init(void);
 int jo_serial_send_byte(unsigned char data);
 int jo_serial_recv_byte(unsigned char* data);
